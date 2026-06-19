@@ -43,6 +43,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         /* invalid or already claimed */
       }
     }
+    // Flush pending onboarding data captured pre-verification on /register
+    try {
+      const raw = localStorage.getItem("pendingOnboarding");
+      if (raw) {
+        const d = JSON.parse(raw) as {
+          personal: { date_of_birth: string; address: string; skills: string; internship_domain: string };
+          college: { college_name: string; degree: string; branch: string; year_of_passing: number };
+        };
+        const [p1, p2, p3] = await Promise.all([
+          supabase.from("personal_details").upsert({ user_id: uid, ...d.personal }),
+          supabase.from("college_details").upsert({ user_id: uid, ...d.college }),
+          supabase.from("profiles").update({
+            internship_domain: d.personal.internship_domain,
+            onboarding_step: 4,
+          }).eq("id", uid),
+        ]);
+        if (!p1.error && !p2.error && !p3.error) {
+          localStorage.removeItem("pendingOnboarding");
+        }
+      }
+    } catch { /* ignore */ }
     const [{ data: roles }, { data: profile }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase.from("profiles").select("onboarding_step").eq("id", uid).maybeSingle(),

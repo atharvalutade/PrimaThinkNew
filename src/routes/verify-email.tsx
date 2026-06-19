@@ -1,5 +1,6 @@
-import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useSearch, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,15 @@ function VerifyEmail() {
   const { email: initialEmail, next } = useSearch({ from: "/verify-email" });
   const [email, setEmail] = useState(initialEmail ?? "");
   const [resending, setResending] = useState(false);
+  const { user, isAdmin, onboardingStep, loading } = useAuth();
+  const nav = useNavigate();
+
+  useEffect(() => {
+    if (loading || !user) return;
+    if (isAdmin) nav({ to: "/admin" });
+    else if (onboardingStep < 4) nav({ to: "/onboarding" });
+    else nav({ to: "/dashboard" });
+  }, [user, isAdmin, onboardingStep, loading, nav]);
 
   const resend = async () => {
     if (!email) return toast.error("Enter your email first");
